@@ -1,10 +1,10 @@
 var AWS = require('aws-sdk');
-AWS.config.loadFromPath('./config/aws.json');
+AWS.config.loadFromPath('./config/sqs.json');
 var config = require('./config/config.json');
 
 var sqs = new AWS.SQS();
 var sqsParams = {
-  QueueUrl: config.queue_url
+  QueueUrl: config.sqs_url
 };
 
 // キューメッセージの取得
@@ -34,36 +34,39 @@ sqs.receiveMessage(sqsParams, function(err, data) {
   
   var target = './tmp/file.jpg';
   var dist = './out/file.jpg';
+
   // リサイズ処理
   easyimg.resize({
-      src:target,
-      dst:dist,
-      width:params.width,
-      height:params.height
-  }, function(err, image) {
-      if (err) throw err;
-      console.log('Resized ' + image.width + ' x ' + image.height);
+    src:target,
+    dst:dist,
+    width:params.width,
+    height:params.height
+  }).then(
+  function(image) {
+    console.log('Resized ' + image.width + ' x ' + image.height);
+  },
+  function (err) {
+    console.log(err);
   });
 
-/*
   // リサイズ画像読み込み
   var readableStream = fs.createReadStream(dist);
   readableStream.on('data', function(data) {
-    console.log(data);
+    AWS.config.loadFromPath('./config/s3.json');
+    var config = require('./config/config.json');
+    var s3 = new AWS.S3();
+    var s3Params = {
+      Bucket: config.s3_bucket,
+      Key: params.width + '/' + params.height + '/file.jpg',
+      Body: data
+    };
+    // サムネイルのS3アップロード
+    s3.putObject(s3Params, function(err, data) {
+      if (err) console.log(err, err.stack);
+    });
   });
   readableStream.on('end', function() {
-    console.log('end');
+    console.log('upload finish');
   });
 
-  var s3 = new AWS.S3();
-  var s3Params = {
-    Bucket: 'STRING_VALUE',
-    Key: 'STRING_VALUE',
-    Body: 
-  };
-  // サムネイルのS3アップロード
-  s3.putObject(s3Params, function(err, data) {
-    if (err) console.log(err, err.stack);
-  });
 });
-
